@@ -150,15 +150,23 @@ What you can do in it:
   decide, then continues (or halts on reject).
 - **Live token/cost meter**: tokens and estimated cost animate upward as each agent
   completes, alongside status, artifact count, and loop count.
-- **Run-history sidebar**: every run is listed; click one to revisit its artifacts and
+- **Run-history sidebar**: every run is listed and **persisted** (survives restarts —
+  SQLite by default, PostgreSQL in production); click one to revisit its artifacts and
   metrics read-only.
-- **Export**: download the whole run as a Markdown report, export artifacts as JSON, or
-  print / save as PDF.
+- **Compare runs**: pick any two runs and see them side by side — metrics and per-phase
+  artifact counts.
+- **Export**: download the whole run as a Markdown report, artifacts as JSON, or a
+  polished **server-rendered PDF** (ReportLab: cover, per-phase sections, artifact content).
 
 The dashboard is backed by these control-plane endpoints (all in `api/app.py`):
 `POST /v1/runs` · `GET /v1/runs` (history) · `GET /v1/runs/{id}` ·
 `GET /v1/runs/{id}/artifacts` · `GET /v1/runs/{id}/events` (SSE) ·
-`POST /v1/runs/{id}/approvals` · `GET /v1/runs/{id}/export` (Markdown).
+`POST /v1/runs/{id}/approvals` · `GET /v1/runs/{id}/export` (Markdown) ·
+`GET /v1/runs/{id}/export.pdf` (native PDF).
+
+**Persistence** is configured by `EDT_STORE_HISTORY_URL` — defaults to
+`sqlite+aiosqlite:///./data/edt.db` (zero infra); set it to a
+`postgresql+asyncpg://…` DSN for a shared, HA history store in production.
 
 ## 5. Repository map
 

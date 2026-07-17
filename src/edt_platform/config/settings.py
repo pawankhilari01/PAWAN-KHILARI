@@ -38,6 +38,10 @@ class StoreSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="EDT_STORE_", extra="ignore")
 
     postgres_dsn: str = "postgresql+asyncpg://edt:edt@localhost:5432/edt"
+    # Durable run-history store. Defaults to a local SQLite file so history survives
+    # restarts with zero infrastructure; in production set this to the async Postgres
+    # DSN (e.g. postgresql+asyncpg://edt:...@rds/edt) for a shared, HA history store.
+    history_url: str = "sqlite+aiosqlite:///./data/edt.db"
     redis_url: str = "redis://localhost:6379/0"
     qdrant_url: str = "http://localhost:6333"
     neo4j_uri: str = "bolt://localhost:7687"

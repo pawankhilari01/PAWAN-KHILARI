@@ -20,13 +20,14 @@ import json
 import logging
 import os
 import time
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 import structlog
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
@@ -39,6 +40,7 @@ from edt_platform.core.llm import LLMClient
 from edt_platform.eventing.publisher import CloudEvent, EventPublisher
 from edt_platform.memory.memory_agent import MemoryAgent
 from edt_platform.orchestration.supervisor import RunState, Supervisor
+from edt_platform.persistence import get_store
 from edt_platform.schemas.core import ApprovalRequest, ApprovalStatus, Phase
 from edt_platform.security.guardrails import GuardrailEngine
 
@@ -50,6 +52,14 @@ structlog.configure(
 )
 
 app = FastAPI(title="EDT Platform Control Plane", version="0.1.0")
+
+
+@app.on_event("startup")
+async def _startup() -> None:
+    # Initialize the durable run-history store (SQLite by default; Postgres in prod).
+    with suppress(Exception):
+        await get_store().init()
+
 
 _DASHBOARD = Path(__file__).parent / "dashboard.html"
 
@@ -146,6 +156,10 @@ async def _run(session: RunSession, req: StartRunRequest) -> None:
         )
     finally:
         session.finished = True
+        # Persist the finished run so history survives a restart.
+        with suppress(Exception):
+            await get_store().save_run(_summary(session))
+            await get_store().save_artifacts(session.run_id, _artifacts_of(session))
         # Nudge any open SSE streams to close.
         for q in session.subscribers:
             q.put_nowait(None)
@@ -186,52 +200,58 @@ async def start_run(req: StartRunRequest) -> dict[str, Any]:
 
 @app.get("/v1/runs")
 async def list_runs() -> list[dict[str, Any]]:
-    """Run history, newest first — powers the dashboard's history sidebar."""
-    rows = []
+    """Run history, newest first — merges live (in-memory) + persisted runs.
+
+    Live sessions win over persisted rows with the same id, so an in-progress run
+    shows its live status while completed runs are served from the durable store and
+    survive restarts.
+    """
+    rows: dict[str, dict[str, Any]] = {}
+    with suppress(Exception):
+        for r in await get_store().list_runs():
+            rows[r["run_id"]] = {
+                "run_id": r["run_id"],
+                "problem": r["problem"],
+                "depth": r["depth"],
+                "created_at": r["created_at"],
+                "status": r["status"],
+                "artifacts": r["artifacts"],
+                "est_cost_usd": r["est_cost_usd"],
+                "finished": r["finished"],
+            }
     for s in _SESSIONS.values():
         summ = _summary(s)
-        rows.append(
-            {
-                "run_id": s.run_id,
-                "problem": s.problem,
-                "depth": s.depth,
-                "created_at": s.created_at,
-                "status": summ["status"],
-                "artifacts": summ["artifacts"],
-                "est_cost_usd": summ["est_cost_usd"],
-                "finished": s.finished,
-            }
-        )
-    return sorted(rows, key=lambda r: r["created_at"], reverse=True)
+        rows[s.run_id] = {
+            "run_id": s.run_id,
+            "problem": s.problem,
+            "depth": s.depth,
+            "created_at": s.created_at,
+            "status": summ["status"],
+            "artifacts": summ["artifacts"],
+            "est_cost_usd": summ["est_cost_usd"],
+            "finished": s.finished,
+        }
+    return sorted(rows.values(), key=lambda r: r["created_at"] or 0, reverse=True)
 
 
 @app.get("/v1/runs/{run_id}")
 async def get_run(run_id: str) -> dict[str, Any]:
-    session = _SESSIONS.get(run_id)
-    if not session:
+    gathered = await _gather(run_id)
+    if not gathered:
         raise HTTPException(status_code=404, detail="run not found")
-    return _summary(session)
+    summary, _ = gathered
+    return summary
 
 
 @app.get("/v1/runs/{run_id}/artifacts")
 async def list_artifacts(run_id: str, phase: Phase | None = None) -> list[dict[str, Any]]:
-    session = _SESSIONS.get(run_id)
-    if not session or not session.state:
+    gathered = await _gather(run_id)
+    if not gathered:
         return []
-    arts = [a for a in session.state.artifacts if phase is None or a.phase == phase]
-    return [
-        {
-            "id": str(a.id),
-            "type": a.type.value,
-            "phase": a.phase.value,
-            "title": a.title,
-            "confidence": round(a.confidence.score, 2),
-            "producer": a.provenance.producer_agent,
-            "model": a.provenance.model,
-            "content": a.content,
-        }
-        for a in arts
-    ]
+    _, arts = gathered
+    if phase is not None:
+        arts = [a for a in arts if a["phase"] == phase.value]
+    return arts
 
 
 @app.get("/v1/runs/{run_id}/events")
@@ -281,15 +301,32 @@ async def decide_approval(run_id: str, decision: ApprovalDecision) -> dict[str, 
 @app.get("/v1/runs/{run_id}/export", response_class=PlainTextResponse)
 async def export_run(run_id: str) -> PlainTextResponse:
     """Export the whole run as a single Markdown design-thinking report."""
-    session = _SESSIONS.get(run_id)
-    if not session:
+    gathered = await _gather(run_id)
+    if not gathered:
         raise HTTPException(status_code=404, detail="run not found")
-    md = _render_markdown(session)
-    filename = f"edt-run-{run_id[:8]}.md"
+    summary, arts = gathered
+    md = _render_markdown(summary, arts)
     return PlainTextResponse(
         md,
         media_type="text/markdown",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f'attachment; filename="edt-run-{run_id[:8]}.md"'},
+    )
+
+
+@app.get("/v1/runs/{run_id}/export.pdf")
+async def export_run_pdf(run_id: str) -> Response:
+    """Export the run as a polished, server-rendered PDF report (ReportLab)."""
+    gathered = await _gather(run_id)
+    if not gathered:
+        raise HTTPException(status_code=404, detail="run not found")
+    summary, arts = gathered
+    from edt_platform.api.pdf import render_run_pdf
+
+    pdf = render_run_pdf(summary, arts)
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="edt-run-{run_id[:8]}.pdf"'},
     )
 
 
@@ -299,40 +336,81 @@ async def export_run(run_id: str) -> PlainTextResponse:
 _PHASE_ORDER = [Phase.DISCOVER, Phase.DEFINE, Phase.IDEATE, Phase.PROTOTYPE, Phase.VALIDATE]
 
 
-def _render_markdown(session: RunSession) -> str:
+def _artifacts_of(session: RunSession) -> list[dict[str, Any]]:
+    """Project a live session's artifacts into the API/JSON shape."""
+    if not session.state:
+        return []
+    return [
+        {
+            "id": str(a.id),
+            "type": a.type.value,
+            "phase": a.phase.value,
+            "title": a.title,
+            "confidence": round(a.confidence.score, 2),
+            "producer": a.provenance.producer_agent,
+            "model": a.provenance.model,
+            "content": a.content,
+        }
+        for a in session.state.artifacts
+    ]
+
+
+async def _gather(run_id: str) -> tuple[dict[str, Any], list[dict[str, Any]]] | None:
+    """Return (summary, artifacts) for a run from memory, else the durable store."""
+    session = _SESSIONS.get(run_id)
+    if session:
+        return _summary(session), _artifacts_of(session)
+    with suppress(Exception):
+        row = await get_store().get_run(run_id)
+        if row:
+            arts = await get_store().get_artifacts(run_id)
+            per_phase: dict[str, int] = {}
+            for a in arts:
+                per_phase[a["phase"]] = per_phase.get(a["phase"], 0) + 1
+            summary = {
+                **row,
+                "artifacts_by_phase": per_phase,
+                "pending_approvals": [],
+                "log": [],
+                "mode": "demo" if demo_mode() else "live",
+            }
+            return summary, arts
+    return None
+
+
+def _render_markdown(summary: dict[str, Any], arts: list[dict[str, Any]]) -> str:
     """Assemble every artifact into a readable Markdown report, grouped by phase."""
-    summ = _summary(session)
     lines: list[str] = [
         "# Design Thinking Run — Report",
         "",
-        f"**Problem:** {session.problem}",
+        f"**Problem:** {summary.get('problem', '')}",
         "",
-        f"- Run id: `{session.run_id}`",
-        f"- Status: **{summ['status']}**  ·  Depth: {session.depth}  ·  Loops: {summ['loop_count']}",
-        f"- Artifacts: {summ['artifacts']}  ·  Tokens: {summ['tokens_in'] + summ['tokens_out']:,}"
-        f"  ·  Est. cost: ${summ['est_cost_usd']}",
-        f"- Mode: {summ['mode']}",
+        f"- Run id: `{summary.get('run_id', '')}`",
+        f"- Status: **{summary.get('status')}**  ·  Depth: {summary.get('depth')}"
+        f"  ·  Loops: {summary.get('loop_count', 0)}",
+        f"- Artifacts: {summary.get('artifacts', 0)}"
+        f"  ·  Tokens: {summary.get('tokens_in', 0) + summary.get('tokens_out', 0):,}"
+        f"  ·  Est. cost: ${summary.get('est_cost_usd', 0)}",
+        f"- Mode: {summary.get('mode')}",
         "",
         "---",
         "",
     ]
-    arts = session.state.artifacts if session.state else []
     for phase in _PHASE_ORDER:
-        group = [a for a in arts if a.phase == phase]
+        group = [a for a in arts if a["phase"] == phase.value]
         if not group:
             continue
         lines.append(f"## {phase.value.title()}  ({len(group)} artifacts)")
         lines.append("")
         for a in group:
-            lines.append(f"### [{a.type.value}] {a.title}")
+            lines.append(f"### [{a['type']}] {a['title']}")
             lines.append(
-                f"*Producer:* `{a.provenance.producer_agent}`  ·  "
-                f"*Model:* {a.provenance.model}  ·  "
-                f"*Confidence:* {a.confidence.score:.2f}"
+                f"*Producer:* `{a['producer']}`  ·  *Model:* {a.get('model', '')}  ·  "
+                f"*Confidence:* {a['confidence']}"
             )
             lines.append("")
             lines.append("```json")
-            lines.append(json.dumps(a.content, indent=2, default=str))
+            lines.append(json.dumps(a.get("content", {}), indent=2, default=str))
             lines.append("```")
             lines.append("")
         lines.append("")
@@ -340,6 +418,7 @@ def _render_markdown(session: RunSession) -> str:
     lines.append("")
     lines.append("_Generated by the Enterprise Design Thinking AI Platform (EDT Platform)._")
     return "\n".join(lines)
+
 
 def _summary(session: RunSession) -> dict[str, Any]:
     st = session.state
