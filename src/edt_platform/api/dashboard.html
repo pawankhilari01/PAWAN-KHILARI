@@ -15,42 +15,55 @@
   body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
          background:radial-gradient(1200px 600px at 70% -10%,#16203a,transparent),var(--bg); color:var(--txt); }
   a { color:var(--accent); }
-  header { display:flex; align-items:center; gap:16px; padding:16px 24px; border-bottom:1px solid var(--line);
+  header { display:flex; align-items:center; gap:16px; padding:14px 22px; border-bottom:1px solid var(--line);
            position:sticky; top:0; background:rgba(11,15,26,.85); backdrop-filter:blur(8px); z-index:20; }
   header h1 { font-size:16px; margin:0; letter-spacing:.3px; }
   header .sub { color:var(--dim); font-size:12px; }
   .badge { font-size:11px; padding:3px 9px; border-radius:99px; border:1px solid var(--line); color:var(--dim); }
   .badge.demo { color:var(--warn); border-color:#5a4a1e; background:#241d0d; }
   .badge.live { color:var(--ok); border-color:#1c4d3c; background:#0d241b; }
-  .wrap { max-width:1280px; margin:0 auto; padding:22px 24px 60px; }
-  .card { background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--line);
-          border-radius:14px; }
+
+  .layout { display:grid; grid-template-columns:264px 1fr; min-height:calc(100vh - 55px); }
+  .sidebar { border-right:1px solid var(--line); padding:16px 14px; background:var(--panel2); }
+  .side-h { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .side-h b { font-size:12px; text-transform:uppercase; letter-spacing:.6px; color:var(--dim); }
+  .runlist { display:flex; flex-direction:column; gap:8px; }
+  .runitem { padding:10px 12px; border:1px solid var(--line); border-radius:10px; cursor:pointer;
+             background:var(--panel); transition:.12s; }
+  .runitem:hover { border-color:var(--accent); }
+  .runitem.active { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .runitem .p { font-size:12.5px; line-height:1.35; margin-bottom:6px; display:-webkit-box;
+                -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .runitem .m { display:flex; gap:8px; align-items:center; font-size:11px; color:var(--dim); }
+  .dot { width:7px; height:7px; border-radius:50%; background:var(--dim); display:inline-block; }
+  .dot.completed { background:var(--ok); } .dot.running,.dot.awaiting_approval { background:var(--warn); }
+  .side-empty { color:var(--dim); font-size:12px; padding:8px; }
+
+  .main { padding:20px 24px 60px; max-width:1180px; }
+  .card { background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--line); border-radius:14px; }
   .controls { padding:18px; display:grid; grid-template-columns:1fr auto; gap:16px; align-items:end; }
   label { display:block; font-size:12px; color:var(--dim); margin-bottom:6px; }
   textarea, select { width:100%; background:#0a1120; color:var(--txt); border:1px solid var(--line);
           border-radius:10px; padding:10px 12px; font:inherit; resize:vertical; }
   textarea { min-height:52px; }
   .row { display:flex; gap:14px; align-items:end; flex-wrap:wrap; }
-  .row > div { min-width:120px; }
   .check { display:flex; align-items:center; gap:8px; color:var(--dim); font-size:13px; }
   button { cursor:pointer; border:none; border-radius:10px; padding:11px 18px; font:inherit; font-weight:600;
            background:var(--accent); color:#04122e; transition:.15s; }
   button:hover { filter:brightness(1.08); }
   button.ghost { background:transparent; color:var(--dim); border:1px solid var(--line); }
+  button.sm { padding:7px 12px; font-size:12px; }
   button:disabled { opacity:.5; cursor:not-allowed; }
 
-  /* pipeline */
-  .pipeline { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin:22px 0; }
-  .phase { padding:14px; border-radius:14px; border:1px solid var(--line); background:var(--panel2);
-           position:relative; overflow:hidden; }
+  .pipeline { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin:20px 0; }
+  .phase { padding:14px; border-radius:14px; border:1px solid var(--line); background:var(--panel2); position:relative; overflow:hidden; }
   .phase .pn { font-weight:700; font-size:13px; letter-spacing:.4px; text-transform:uppercase; }
   .phase .meta { color:var(--dim); font-size:12px; margin-top:4px; }
   .phase .bar { height:4px; border-radius:4px; background:#1b2540; margin-top:12px; overflow:hidden; }
   .phase .bar i { display:block; height:100%; width:0; transition:width .5s; }
   .phase .st { position:absolute; top:12px; right:12px; font-size:11px; color:var(--dim); }
   .phase.running { box-shadow:0 0 0 1px var(--accent) inset; }
-  .phase.running .st { color:var(--accent); }
-  .phase.done .st { color:var(--ok); }
+  .phase.running .st { color:var(--accent); } .phase.done .st { color:var(--ok); }
   .phase[data-p=discover] .pn{color:var(--discover)} .phase[data-p=discover] .bar i{background:var(--discover)}
   .phase[data-p=define] .pn{color:var(--define)} .phase[data-p=define] .bar i{background:var(--define)}
   .phase[data-p=ideate] .pn{color:var(--ideate)} .phase[data-p=ideate] .bar i{background:var(--ideate)}
@@ -60,55 +73,53 @@
           border-radius:50%; display:inline-block; animation:sp .7s linear infinite; vertical-align:-1px; }
   @keyframes sp { to { transform:rotate(360deg); } }
 
-  /* approval banner */
   .approval { display:none; align-items:center; gap:14px; padding:14px 18px; margin:14px 0; border-radius:12px;
               border:1px solid #5a4a1e; background:#241d0d; }
-  .approval.show { display:flex; }
-  .approval .txt { flex:1; }
-  .approval b { color:var(--warn); }
+  .approval.show { display:flex; } .approval .txt { flex:1; } .approval b { color:var(--warn); }
 
-  /* summary */
-  .summary { display:flex; gap:20px; flex-wrap:wrap; margin:8px 0 18px; }
-  .stat { background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px 16px; }
+  .meterbar { display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin:6px 0 18px; }
+  .stat { background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px 16px; min-width:96px; }
   .stat .k { color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
-  .stat .v { font-size:20px; font-weight:700; }
+  .stat .v { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .stat.live .v { color:var(--accent); }
+  .exports { margin-left:auto; display:flex; gap:8px; }
 
   .grid { display:grid; grid-template-columns:1.3fr 1fr; gap:18px; }
-  @media (max-width:900px){ .grid{grid-template-columns:1fr;} .pipeline{grid-template-columns:repeat(2,1fr);} }
-  .panel-h { display:flex; justify-content:space-between; align-items:center; padding:14px 16px;
-             border-bottom:1px solid var(--line); font-weight:600; }
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr;} .sidebar{border-right:none;border-bottom:1px solid var(--line);}
+    .grid{grid-template-columns:1fr;} .pipeline{grid-template-columns:repeat(2,1fr);} }
+  .panel-h { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid var(--line); font-weight:600; }
   .panel-h small { color:var(--dim); font-weight:400; }
-
-  /* artifacts */
   .arts { padding:12px 16px; max-height:520px; overflow:auto; }
-  .art-group { margin-bottom:14px; }
   .art-group .gh { font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--dim); margin:8px 0 6px; }
   .art { display:flex; gap:10px; align-items:center; padding:10px 12px; border:1px solid var(--line);
          border-radius:10px; margin-bottom:8px; cursor:pointer; background:var(--panel2); transition:.12s; }
   .art:hover { border-color:var(--accent); transform:translateX(2px); }
   .art .type { font-size:10px; padding:2px 7px; border-radius:6px; background:#132140; color:var(--accent); white-space:nowrap; }
-  .art .t { flex:1; font-size:13px; }
-  .art .c { font-size:12px; font-weight:700; }
+  .art .t { flex:1; font-size:13px; } .art .ag { font-size:11px; color:var(--dim); } .art .c { font-size:12px; font-weight:700; }
   .c.hi{color:var(--ok)} .c.mid{color:var(--warn)} .c.lo{color:var(--bad)}
-  .art .ag { font-size:11px; color:var(--dim); }
-
-  /* event log */
   .log { padding:8px 14px; max-height:520px; overflow:auto; font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace; }
-  .log div { color:var(--dim); white-space:nowrap; }
-  .log .ph { color:var(--accent); } .log .ok { color:var(--ok); } .log .wn { color:var(--warn); }
+  .log div { color:var(--dim); white-space:nowrap; } .log .ph { color:var(--accent); } .log .ok { color:var(--ok); } .log .wn { color:var(--warn); }
 
-  /* drawer */
   .drawer { position:fixed; top:0; right:0; height:100%; width:min(560px,92vw); background:var(--panel);
-            border-left:1px solid var(--line); transform:translateX(100%); transition:.25s; z-index:40;
-            display:flex; flex-direction:column; }
+            border-left:1px solid var(--line); transform:translateX(100%); transition:.25s; z-index:40; display:flex; flex-direction:column; }
   .drawer.open { transform:none; }
   .drawer .dh { padding:16px 18px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
   .drawer .db { padding:16px 18px; overflow:auto; }
-  .kv { margin:0 0 14px; }
-  .kv .kk { color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+  .kv { margin:0 0 14px; } .kv .kk { color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
   pre { background:#0a1120; border:1px solid var(--line); border-radius:10px; padding:12px; overflow:auto;
         font:12px/1.6 ui-monospace,Menlo,monospace; color:#cfe0ff; }
   .empty { color:var(--dim); padding:24px; text-align:center; }
+
+  /* print / PDF view */
+  #printable { display:none; }
+  @media print {
+    header,.sidebar,.controls,.approval,.pipeline,.grid,.drawer,.exports { display:none !important; }
+    body { background:#fff; color:#111; } .layout{display:block;} .main{max-width:none;padding:0;}
+    #printable { display:block; padding:0 8px; }
+    #printable h1{font-size:20px;} #printable h2{font-size:15px;border-bottom:1px solid #ccc;padding-bottom:3px;margin-top:22px;}
+    #printable h3{font-size:13px;margin:14px 0 2px;} #printable .pmeta{color:#555;font-size:11px;}
+    #printable pre{background:#f5f7fb;border:1px solid #ddd;color:#111;white-space:pre-wrap;word-break:break-word;}
+  }
 </style>
 </head>
 <body>
@@ -120,56 +131,70 @@
   <span id="runstat" class="badge">idle</span>
 </header>
 
-<div class="wrap">
-  <div class="card controls">
-    <div>
-      <label>Business problem</label>
-      <textarea id="problem">A regional retail bank is losing Gen-Z customers; reduce churn and grow deposits.</textarea>
-      <div class="row" style="margin-top:12px">
-        <div>
-          <label>Depth</label>
-          <select id="depth">
-            <option value="lite">lite — fast, fewer agents</option>
-            <option value="standard" selected>standard</option>
-            <option value="deep">deep — every agent</option>
-          </select>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="side-h"><b>Run history</b><button class="ghost sm" onclick="reset()">+ New</button></div>
+    <div class="runlist" id="runlist"><div class="side-empty">No runs yet.</div></div>
+  </aside>
+
+  <main class="main">
+    <div class="card controls">
+      <div>
+        <label>Business problem</label>
+        <textarea id="problem">A regional retail bank is losing Gen-Z customers; reduce churn and grow deposits.</textarea>
+        <div class="row" style="margin-top:12px">
+          <div>
+            <label>Depth</label>
+            <select id="depth">
+              <option value="lite">lite — fast, fewer agents</option>
+              <option value="standard" selected>standard</option>
+              <option value="deep">deep — every agent</option>
+            </select>
+          </div>
+          <label class="check"><input type="checkbox" id="approval" /> Require human approval gates</label>
         </div>
-        <label class="check"><input type="checkbox" id="approval" /> Require human approval gates</label>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button id="run">▶ Run Lifecycle</button>
+        <button id="reset" class="ghost">Reset</button>
       </div>
     </div>
-    <div style="display:flex; gap:10px;">
-      <button id="run">▶ Run Lifecycle</button>
-      <button id="reset" class="ghost">Reset</button>
+
+    <div id="approval-banner" class="approval">
+      <div class="txt">Human approval required for <b id="approval-phase"></b>. Review the artifacts, then decide.</div>
+      <button id="ap-yes">Approve</button>
+      <button id="ap-no" class="ghost">Reject</button>
     </div>
-  </div>
 
-  <div id="approval-banner" class="approval">
-    <div class="txt">Human approval required for <b id="approval-phase"></b>. Review the artifacts, then decide.</div>
-    <button id="ap-yes">Approve</button>
-    <button id="ap-no" class="ghost">Reject</button>
-  </div>
+    <div class="pipeline" id="pipeline"></div>
 
-  <div class="pipeline" id="pipeline"></div>
-
-  <div class="summary" id="summary" style="display:none">
-    <div class="stat"><div class="k">Status</div><div class="v" id="s-status">—</div></div>
-    <div class="stat"><div class="k">Artifacts</div><div class="v" id="s-arts">0</div></div>
-    <div class="stat"><div class="k">Tokens</div><div class="v" id="s-tok">0</div></div>
-    <div class="stat"><div class="k">Est. cost</div><div class="v" id="s-cost">$0</div></div>
-    <div class="stat"><div class="k">Loops</div><div class="v" id="s-loops">0</div></div>
-  </div>
-
-  <div class="grid">
-    <div class="card">
-      <div class="panel-h">Artifacts <small id="art-count">— click any to inspect</small></div>
-      <div class="arts" id="arts"><div class="empty">Run the lifecycle to generate artifacts.</div></div>
+    <div class="meterbar" id="meterbar" style="display:none">
+      <div class="stat"><div class="k">Status</div><div class="v" id="s-status">—</div></div>
+      <div class="stat"><div class="k">Artifacts</div><div class="v" id="s-arts">0</div></div>
+      <div class="stat live"><div class="k">Tokens ⟳</div><div class="v" id="s-tok">0</div></div>
+      <div class="stat live"><div class="k">Est. cost ⟳</div><div class="v" id="s-cost">$0.00</div></div>
+      <div class="stat"><div class="k">Loops</div><div class="v" id="s-loops">0</div></div>
+      <div class="exports">
+        <button class="ghost sm" id="ex-md">⬇ Markdown</button>
+        <button class="ghost sm" id="ex-json">⬇ JSON</button>
+        <button class="ghost sm" id="ex-pdf">🖨 PDF</button>
+      </div>
     </div>
-    <div class="card">
-      <div class="panel-h">Live event stream <small>CloudEvents</small></div>
-      <div class="log" id="log"><div>Awaiting run…</div></div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="panel-h">Artifacts <small id="art-count">— click any to inspect</small></div>
+        <div class="arts" id="arts"><div class="empty">Run the lifecycle to generate artifacts.</div></div>
+      </div>
+      <div class="card">
+        <div class="panel-h">Live event stream <small>CloudEvents</small></div>
+        <div class="log" id="log"><div>Awaiting run…</div></div>
+      </div>
     </div>
-  </div>
+  </main>
 </div>
+
+<div id="printable"></div>
 
 <div class="drawer" id="drawer">
   <div class="dh">
@@ -184,17 +209,15 @@
 
 <script>
 const PHASES = ["discover","define","ideate","prototype","validate"];
-let runId=null, es=null, artifactsCache=[];
+let runId=null, es=null, artifactsCache=[], viewing=null, lastSummaryFetch=0;
 
-function el(id){ return document.getElementById(id); }
-function confClass(c){ return c>=0.72?"hi":(c>=0.5?"mid":"lo"); }
+const el=id=>document.getElementById(id);
+const confClass=c=>c>=0.72?"hi":(c>=0.5?"mid":"lo");
 
-// build pipeline cards
 function buildPipeline(){
   el("pipeline").innerHTML = PHASES.map(p=>`
     <div class="phase" data-p="${p}" id="ph-${p}">
-      <div class="st">pending</div>
-      <div class="pn">${p}</div>
+      <div class="st">pending</div><div class="pn">${p}</div>
       <div class="meta"><span id="cnt-${p}">0</span> artifacts</div>
       <div class="bar"><i></i></div>
     </div>`).join("");
@@ -202,94 +225,87 @@ function buildPipeline(){
 buildPipeline();
 
 async function mode(){
-  try { const r= await (await fetch("/healthz")).json();
+  try { const r=await (await fetch("/healthz")).json();
         const b=el("mode"); b.textContent=r.mode.toUpperCase()+" MODE"; b.className="badge "+r.mode; }
   catch(e){ el("mode").textContent="offline"; }
 }
-mode();
 
-function setPhase(p, state){
+function setPhase(p,state){
   const c=el("ph-"+p); if(!c) return;
   c.classList.remove("running","done");
   const st=c.querySelector(".st"), bar=c.querySelector(".bar i");
   if(state==="running"){ c.classList.add("running"); st.innerHTML='<span class="spin"></span> running'; bar.style.width="55%"; }
   if(state==="done"){ c.classList.add("done"); st.textContent="done ✓"; bar.style.width="100%"; }
+  if(state==="pending"){ st.textContent="pending"; bar.style.width="0"; }
+}
+
+// animated count-up for the live meter
+function animateNumber(node, target, money){
+  const cur = parseFloat((node.dataset.v||"0")); if(cur===target){ return; }
+  const start=cur, t0=performance.now(), dur=500;
+  function step(t){
+    const k=Math.min(1,(t-t0)/dur), v=start+(target-start)*(k*(2-k)); // ease-out
+    node.textContent = money ? "$"+v.toFixed(2) : Math.round(v).toLocaleString();
+    if(k<1) requestAnimationFrame(step); else node.dataset.v=target;
+  }
+  node.dataset.v=target; requestAnimationFrame(step);
 }
 
 function logLine(type){
-  const parts=type.split(".");
-  let cls=""; if(type.includes("completed")||type.includes("granted")||type.includes("run.completed")) cls="ok";
+  let cls=""; if(type.includes("completed")||type.includes("run.completed")) cls="ok";
   if(type.includes("approval")) cls="wn"; if(type.includes("phase.started")) cls="ph";
   const d=document.createElement("div"); d.className=cls; d.textContent=type;
   const L=el("log"); if(L.children.length===1 && L.textContent.includes("Awaiting")) L.innerHTML="";
   L.appendChild(d); L.scrollTop=L.scrollHeight;
 }
 
-function handleEvent(type, data){
+function handleEvent(type,data){
   logLine(type);
-  const parts=type.split("."); // edt.<seg>.<...>
-  const seg=parts[1];
+  const seg=type.split(".")[1];
   if(PHASES.includes(seg)){
     if(type.endsWith("phase.started")) setPhase(seg,"running");
     if(type.endsWith("phase.completed")){ setPhase(seg,"done"); refreshArtifacts(); }
   }
-  if(type==="edt.approval.requested"){ showApproval(data && data.phase); }
-  if(type==="edt.approval.decided"){ hideApproval(); }
-  if(type==="edt.run.completed"){ el("runstat").textContent="completed"; }
+  if(type.endsWith("agent.completed")) refreshSummary();          // live meter ticks up
+  if(type==="edt.approval.requested") showApproval(data&&data.phase);
+  if(type==="edt.approval.decided") hideApproval();
+  if(type==="edt.run.completed") el("runstat").textContent="completed";
 }
 
-function showApproval(phase){
-  el("approval-phase").textContent=phase||"this phase";
-  el("approval-banner").classList.add("show");
-  el("approval-banner").dataset.phase=phase||"";
-}
+function showApproval(phase){ el("approval-phase").textContent=phase||"this phase";
+  el("approval-banner").classList.add("show"); el("approval-banner").dataset.phase=phase||""; }
 function hideApproval(){ el("approval-banner").classList.remove("show"); }
-
 async function decide(decision){
   const phase=el("approval-banner").dataset.phase;
   await fetch(`/v1/runs/${runId}/approvals`,{method:"POST",headers:{"content-type":"application/json"},
-    body:JSON.stringify({phase, decision})});
-  hideApproval();
+    body:JSON.stringify({phase,decision})}); hideApproval();
 }
 el("ap-yes").onclick=()=>decide("approved");
 el("ap-no").onclick=()=>decide("rejected");
 
 async function refreshArtifacts(){
-  if(!runId) return;
-  try { artifactsCache = await (await fetch(`/v1/runs/${runId}/artifacts`)).json(); }
-  catch(e){ return; }
+  if(!viewing) return;
+  try { artifactsCache=await (await fetch(`/v1/runs/${viewing}/artifacts`)).json(); } catch(e){ return; }
   PHASES.forEach(p=>{ const n=artifactsCache.filter(a=>a.phase===p).length; const c=el("cnt-"+p); if(c)c.textContent=n; });
   renderArtifacts();
-  refreshSummary();
 }
-
 function renderArtifacts(){
   const box=el("arts");
   if(!artifactsCache.length){ box.innerHTML='<div class="empty">No artifacts yet…</div>'; return; }
-  box.innerHTML = PHASES.map(p=>{
-    const items=artifactsCache.filter(a=>a.phase===p);
-    if(!items.length) return "";
+  box.innerHTML=PHASES.map(p=>{
+    const items=artifactsCache.filter(a=>a.phase===p); if(!items.length) return "";
     return `<div class="art-group"><div class="gh">${p} · ${items.length}</div>`+
-      items.map((a,i)=>`
-        <div class="art" onclick="openDrawer('${a.id}')">
-          <span class="type">${a.type}</span>
-          <span class="t">${a.title}</span>
-          <span class="ag">${a.producer}</span>
-          <span class="c ${confClass(a.confidence)}">${a.confidence}</span>
-        </div>`).join("")+`</div>`;
+      items.map(a=>`<div class="art" onclick="openDrawer('${a.id}')">
+        <span class="type">${a.type}</span><span class="t">${a.title}</span>
+        <span class="ag">${a.producer}</span><span class="c ${confClass(a.confidence)}">${a.confidence}</span></div>`).join("")+`</div>`;
   }).join("");
-  el("art-count").textContent = artifactsCache.length+" artifacts — click any to inspect";
+  el("art-count").textContent=artifactsCache.length+" artifacts — click any to inspect";
 }
-
-function jsonToHtml(v){
-  return "<pre>"+JSON.stringify(v,null,2).replace(/</g,"&lt;")+"</pre>";
-}
+const jsonToHtml=v=>"<pre>"+JSON.stringify(v,null,2).replace(/</g,"&lt;")+"</pre>";
 function openDrawer(id){
   const a=artifactsCache.find(x=>x.id===id); if(!a) return;
-  el("d-type").textContent="["+a.type+"]  ·  "+a.phase;
-  el("d-title").textContent=a.title;
-  el("d-body").innerHTML=
-    `<div class="kv"><div class="kk">Producer</div>${a.producer} · <span style="color:var(--dim)">${a.model}</span></div>
+  el("d-type").textContent="["+a.type+"]  ·  "+a.phase; el("d-title").textContent=a.title;
+  el("d-body").innerHTML=`<div class="kv"><div class="kk">Producer</div>${a.producer} · <span style="color:var(--dim)">${a.model}</span></div>
      <div class="kv"><div class="kk">Confidence</div><span class="c ${confClass(a.confidence)}">${a.confidence}</span></div>
      <div class="kv"><div class="kk">Content</div>${jsonToHtml(a.content)}</div>`;
   el("drawer").classList.add("open");
@@ -297,43 +313,87 @@ function openDrawer(id){
 function closeDrawer(){ el("drawer").classList.remove("open"); }
 
 async function refreshSummary(){
-  if(!runId) return;
+  if(!viewing) return;
+  const now=performance.now(); if(now-lastSummaryFetch<250) return; lastSummaryFetch=now;
   try {
-    const s= await (await fetch(`/v1/runs/${runId}`)).json();
-    el("summary").style.display="flex";
+    const s=await (await fetch(`/v1/runs/${viewing}`)).json();
+    el("meterbar").style.display="flex";
     el("s-status").textContent=s.status;
     el("s-arts").textContent=s.artifacts;
-    el("s-tok").textContent=(s.tokens_in+s.tokens_out).toLocaleString();
-    el("s-cost").textContent="$"+s.est_cost_usd;
+    animateNumber(el("s-tok"), s.tokens_in+s.tokens_out, false);
+    animateNumber(el("s-cost"), s.est_cost_usd, true);
     el("s-loops").textContent=s.loop_count;
   } catch(e){}
+}
+
+function buildPrintable(){
+  const groups=PHASES.map(p=>{
+    const items=artifactsCache.filter(a=>a.phase===p); if(!items.length) return "";
+    return `<h2>${p} (${items.length})</h2>`+items.map(a=>
+      `<h3>[${a.type}] ${a.title}</h3><div class="pmeta">${a.producer} · ${a.model} · confidence ${a.confidence}</div>
+       <pre>${JSON.stringify(a.content,null,2).replace(/</g,"&lt;")}</pre>`).join("");
+  }).join("");
+  el("printable").innerHTML=`<h1>Design Thinking Run — Report</h1>
+     <div class="pmeta">${el("problem").value}</div>`+groups;
+}
+
+// ---- history sidebar ----
+function timeAgo(ts){ if(!ts) return ""; const s=Math.max(0,Date.now()/1000-ts);
+  if(s<60) return "just now"; if(s<3600) return Math.floor(s/60)+"m ago"; return Math.floor(s/3600)+"h ago"; }
+async function loadHistory(){
+  let rows=[]; try{ rows=await (await fetch("/v1/runs")).json(); }catch(e){ return; }
+  const box=el("runlist");
+  if(!rows.length){ box.innerHTML='<div class="side-empty">No runs yet.</div>'; return; }
+  box.innerHTML=rows.map(r=>`
+    <div class="runitem ${r.run_id===viewing?'active':''}" onclick="selectRun('${r.run_id}')">
+      <div class="p">${r.problem||'(untitled)'}</div>
+      <div class="m"><span class="dot ${r.status}"></span>${r.status} · ${r.artifacts} arts · $${r.est_cost_usd} · ${timeAgo(r.created_at)}</div>
+    </div>`).join("");
+}
+
+async function selectRun(id){
+  if(es){ es.close(); es=null; }
+  viewing=id; runId=id;
+  buildPipeline(); el("log").innerHTML="<div>Loaded from history.</div>";
+  const s=await (await fetch(`/v1/runs/${id}`)).json();
+  el("problem").value=s.problem||el("problem").value; el("depth").value=s.depth||"standard";
+  PHASES.forEach(p=> setPhase(p, (s.artifacts_by_phase&&s.artifacts_by_phase[p])?"done":"pending"));
+  el("runstat").textContent=s.status;
+  await refreshArtifacts(); await refreshSummary(); loadHistory();
+  window.scrollTo({top:0,behavior:"smooth"});
 }
 
 async function run(){
   reset(false);
   el("run").disabled=true; el("runstat").textContent="running…";
-  const body={ problem:el("problem").value, depth:el("depth").value, require_approval:el("approval").checked };
-  const r= await (await fetch("/v1/runs",{method:"POST",headers:{"content-type":"application/json"},
-    body:JSON.stringify(body)})).json();
-  runId=r.run_id;
+  const body={problem:el("problem").value, depth:el("depth").value, require_approval:el("approval").checked};
+  const r=await (await fetch("/v1/runs",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})).json();
+  runId=r.run_id; viewing=r.run_id; loadHistory();
   es=new EventSource(`/v1/runs/${runId}/events`);
   es.addEventListener("cloudevent",ev=>{ const d=JSON.parse(ev.data); handleEvent(d.type,d.data); });
-  es.addEventListener("done",ev=>{ es.close(); el("run").disabled=false;
-    refreshArtifacts(); refreshSummary(); el("runstat").textContent="completed"; });
-  // gentle polling for artifacts while running
-  const poll=setInterval(()=>{ if(!runId||el("run").disabled===false){clearInterval(poll);} refreshArtifacts(); },1500);
+  es.addEventListener("done",ev=>{ es.close(); el("run").disabled=false; el("runstat").textContent="completed";
+    refreshArtifacts().then(()=>{ refreshSummary(); buildPrintable(); loadHistory(); }); });
 }
 
-function reset(clearProblem=true){
-  if(es){ es.close(); es=null; } runId=null; artifactsCache=[];
+function reset(clearView=true){
+  if(es){ es.close(); es=null; }
+  if(clearView){ runId=null; viewing=null; artifactsCache=[]; }
   buildPipeline(); el("log").innerHTML="<div>Awaiting run…</div>";
   el("arts").innerHTML='<div class="empty">Run the lifecycle to generate artifacts.</div>';
-  el("summary").style.display="none"; hideApproval(); el("runstat").textContent="idle";
-  el("run").disabled=false; closeDrawer();
-  if(clearProblem){} // keep problem text
+  el("meterbar").style.display="none"; hideApproval(); el("runstat").textContent="idle";
+  el("run").disabled=false; closeDrawer(); ["s-tok","s-cost"].forEach(i=>el(i).dataset.v="0");
+  if(clearView) loadHistory();
 }
-el("run").onclick=run;
-el("reset").onclick=()=>reset();
+
+// exports
+function download(name,text,mime){ const b=new Blob([text],{type:mime}); const u=URL.createObjectURL(b);
+  const a=document.createElement("a"); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u); }
+el("ex-md").onclick=()=>{ if(viewing) window.location=`/v1/runs/${viewing}/export`; };
+el("ex-json").onclick=()=>download(`edt-artifacts-${(viewing||'run').slice(0,8)}.json`, JSON.stringify(artifactsCache,null,2),"application/json");
+el("ex-pdf").onclick=()=>{ buildPrintable(); setTimeout(()=>window.print(),50); };
+
+el("run").onclick=run; el("reset").onclick=()=>reset();
+mode(); loadHistory();
 </script>
 </body>
 </html>

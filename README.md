@@ -148,11 +148,17 @@ What you can do in it:
   content, producing agent, model tier, and confidence score.
 - **Approve or reject** each human-approval gate interactively; the run blocks until you
   decide, then continues (or halts on reject).
-- **Live metrics**: artifact counts, token usage, estimated cost, and loop count.
+- **Live token/cost meter**: tokens and estimated cost animate upward as each agent
+  completes, alongside status, artifact count, and loop count.
+- **Run-history sidebar**: every run is listed; click one to revisit its artifacts and
+  metrics read-only.
+- **Export**: download the whole run as a Markdown report, export artifacts as JSON, or
+  print / save as PDF.
 
 The dashboard is backed by these control-plane endpoints (all in `api/app.py`):
-`POST /v1/runs` · `GET /v1/runs/{id}` · `GET /v1/runs/{id}/artifacts` ·
-`GET /v1/runs/{id}/events` (SSE) · `POST /v1/runs/{id}/approvals`.
+`POST /v1/runs` · `GET /v1/runs` (history) · `GET /v1/runs/{id}` ·
+`GET /v1/runs/{id}/artifacts` · `GET /v1/runs/{id}/events` (SSE) ·
+`POST /v1/runs/{id}/approvals` · `GET /v1/runs/{id}/export` (Markdown).
 
 ## 5. Repository map
 
