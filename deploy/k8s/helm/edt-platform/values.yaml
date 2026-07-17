@@ -1,0 +1,54 @@
+# Values for the EDT Platform chart.
+# Each agent is an independently scalable A2A Deployment; the control plane and
+# Temporal worker are separate. KEDA scales agents on Kafka consumer lag.
+
+image:
+  repository: ghcr.io/pawankhilari01/edt-platform
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+controlPlane:
+  replicas: 3
+  port: 8080
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits:   { cpu: "1",    memory: "1Gi" }
+
+temporalWorker:
+  replicas: 2
+
+# Per-agent services. Add an entry to spin up a new A2A agent Deployment.
+agents:
+  supervisor:        { replicas: 2, tier: reasoning }
+  problem_discovery: { replicas: 2, tier: reasoning }
+  persona_builder:   { replicas: 3, tier: default }
+  scamper:           { replicas: 3, tier: default }
+  prd_generator:     { replicas: 2, tier: reasoning }
+  go_no_go:          { replicas: 1, tier: reasoning }
+  critic:            { replicas: 2, tier: reasoning }
+
+autoscaling:
+  keda:
+    enabled: true
+    kafkaLagThreshold: 50
+    minReplicas: 1
+    maxReplicas: 20
+
+serviceMesh:
+  istio:
+    enabled: true
+    mtls: STRICT
+
+secrets:
+  # Injected by External Secrets Operator from Vault; never store values in git.
+  vaultPath: secret/data/edt-platform
+
+env:
+  EDT_OBS_ENVIRONMENT: prod
+  EDT_GOV_REQUIRE_PHASE_APPROVAL: "true"
+  EDT_GOV_PER_RUN_USD_BUDGET: "250"
+
+ingress:
+  enabled: true
+  host: edt.internal.example.com
+  tls: true

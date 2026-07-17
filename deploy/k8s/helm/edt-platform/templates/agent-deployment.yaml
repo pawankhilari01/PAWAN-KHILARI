@@ -1,0 +1,82 @@
+# Templates one Deployment + Service per entry in `.Values.agents`, so every agent
+# is an independently deployable, independently scalable A2A microservice.
+{{- range $name, $cfg := .Values.agents }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edt-agent-{{ $name | replace "_" "-" }}
+  labels:
+    app.kubernetes.io/part-of: edt-platform
+    edt.agent: {{ $name }}
+spec:
+  replicas: {{ $cfg.replicas | default 1 }}
+  selector:
+    matchLabels:
+      edt.agent: {{ $name }}
+  template:
+    metadata:
+      labels:
+        edt.agent: {{ $name }}
+      annotations:
+        sidecar.istio.io/inject: "{{ $.Values.serviceMesh.istio.enabled }}"
+    spec:
+      serviceAccountName: edt-agent
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: agent
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command: ["python", "-m", "edt_platform.a2a.serve", "--agent", "{{ $name }}"]
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: edt-platform-secrets
+          env:
+            - name: EDT_AGENT_NAME
+              value: {{ $name }}
+            - name: EDT_AGENT_TIER
+              value: {{ $cfg.tier | default "default" }}
+          readinessProbe:
+            httpGet: { path: /.well-known/agent.json, port: 8080 }
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 10
+          resources:
+            requests: { cpu: "200m", memory: "512Mi" }
+            limits:   { cpu: "1",    memory: "1Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edt-agent-{{ $name | replace "_" "-" }}
+spec:
+  selector:
+    edt.agent: {{ $name }}
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+{{- if $.Values.autoscaling.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: edt-agent-{{ $name | replace "_" "-" }}
+spec:
+  scaleTargetRef:
+    name: edt-agent-{{ $name | replace "_" "-" }}
+  minReplicaCount: {{ $.Values.autoscaling.keda.minReplicas }}
+  maxReplicaCount: {{ $.Values.autoscaling.keda.maxReplicas }}
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: "{{ $.Values.env.EDT_EVENT_KAFKA_BOOTSTRAP_SERVERS | default "kafka:9092" }}"
+        consumerGroup: edt-agent-{{ $name }}
+        topic: edt.{{ $name }}.tasks
+        lagThreshold: "{{ $.Values.autoscaling.keda.kafkaLagThreshold }}"
+---
+{{- end }}
+{{- end }}

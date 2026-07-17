@@ -1,0 +1,8 @@
+apiVersion: v2
+name: edt-platform
+description: Enterprise Design Thinking AI Platform — control plane + per-agent A2A services.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+maintainers:
+  - name: EDT Platform Team
