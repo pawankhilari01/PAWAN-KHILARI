@@ -111,21 +111,48 @@ make dev                      # pip install -e ".[dev]"
 # 2. Run the offline test suite (no external services, fakes injected)
 make test                     # 5 tests: full lifecycle runs end-to-end
 
-# 3. Run a real lifecycle (needs an Anthropic key)
+# 3a. Launch the WEB DASHBOARD — no API key needed (demo mode)
+make dashboard                # open http://localhost:8080
+#     → enter a problem, watch all 5 phases execute live, inspect artifacts,
+#       approve/reject human-approval gates. See §4.1.
+
+# 3b. Watch a lifecycle in the terminal instead
+make demo                     # pretty-prints every artifact by phase
+
+# 4. Run a real lifecycle with Claude (needs an Anthropic key)
 export EDT_LLM_ANTHROPIC_API_KEY=sk-ant-...
 make run                      # edt run "<problem>" --depth lite
 
-# 4. Bring up the full local stack + control-plane API
-make stack                    # postgres, redis, qdrant, neo4j, redpanda(kafka), minio, api
-curl localhost:8080/healthz
-curl -X POST localhost:8080/v1/runs \
-  -H 'content-type: application/json' \
-  -d '{"problem":"A regional bank is losing Gen-Z customers; grow deposits","depth":"lite"}'
+# 5. Full local stack (Postgres, Redis, Qdrant, Neo4j, Kafka, MinIO + API)
+make stack && curl localhost:8080/healthz
 ```
 
 The reference implementation runs the **entire five-phase pipeline** against in-memory
 fakes so you can see the orchestration, reflection/critique loops, approval gates, and
 feedback loops without any infrastructure — then swap in real backends via env vars.
+
+### 4.1 The dashboard — visualize & execute the whole cycle
+
+`make dashboard` serves a single-page **Design Thinking Command Center** at
+`http://localhost:8080` (from `src/edt_platform/api/dashboard.html`, served by the
+FastAPI control plane). It works in **demo mode with no API key** and switches to
+**live** automatically when `EDT_LLM_ANTHROPIC_API_KEY` is set.
+
+What you can do in it:
+
+- **Kick off a run** from any business problem, choosing depth (`lite`/`standard`/`deep`)
+  and whether to enforce human-approval gates.
+- **Watch the five phases execute live** — phase cards light up as each runs (fed by real
+  CloudEvents over Server-Sent Events), with a streaming event log.
+- **See artifacts appear per phase** and click any one to open a drawer showing its full
+  content, producing agent, model tier, and confidence score.
+- **Approve or reject** each human-approval gate interactively; the run blocks until you
+  decide, then continues (or halts on reject).
+- **Live metrics**: artifact counts, token usage, estimated cost, and loop count.
+
+The dashboard is backed by these control-plane endpoints (all in `api/app.py`):
+`POST /v1/runs` · `GET /v1/runs/{id}` · `GET /v1/runs/{id}/artifacts` ·
+`GET /v1/runs/{id}/events` (SSE) · `POST /v1/runs/{id}/approvals`.
 
 ## 5. Repository map
 

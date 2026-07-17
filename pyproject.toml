@@ -67,6 +67,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/edt_platform"]
+# Ship non-Python assets (the dashboard SPA served by the control plane).
+artifacts = ["src/edt_platform/api/dashboard.html"]
 
 [tool.ruff]
 line-length = 110

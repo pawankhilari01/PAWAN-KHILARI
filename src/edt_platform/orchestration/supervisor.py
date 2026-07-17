@@ -70,8 +70,13 @@ class Supervisor:
         phases: list[Phase] | None = None,
         depth: str = "standard",
         require_approval: bool = True,
+        on_state: Callable[[RunState], None] | None = None,
     ) -> RunState:
         state = RunState(run_id=uuid4(), project_id=project_id or uuid4(), problem=problem)
+        # Expose the live state reference (e.g. so a dashboard can stream artifacts
+        # as they accumulate, not just at the end).
+        if on_state:
+            on_state(state)
         state.status = RunStatus.PLANNING
         await self._event(state, "run.created", {"problem": problem})
 

@@ -9,6 +9,8 @@ The reference implementation buffers in memory for local/testing use.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import uuid4
@@ -35,6 +37,19 @@ class EventPublisher:
         self._producer = producer                    # aiokafka producer or None
         self._prefix = get_settings().event.topic_prefix
         self.buffer: list[CloudEvent] = []           # test/local sink
+        # Live in-process subscribers (e.g. the dashboard SSE stream). Each is a
+        # callable receiving the CloudEvent as it is published.
+        self._subscribers: list[Callable[[CloudEvent], None]] = []
+
+    def subscribe(self, callback: Callable[[CloudEvent], None]) -> Callable[[], None]:
+        """Register a live subscriber; returns an unsubscribe function."""
+        self._subscribers.append(callback)
+
+        def _unsub() -> None:
+            with suppress(ValueError):
+                self._subscribers.remove(callback)
+
+        return _unsub
 
     def _topic_for(self, event_type: str) -> str:
         # edt.discover.persona.created -> edt.discover
@@ -56,4 +71,7 @@ class EventPublisher:
             )
         else:
             self.buffer.append(evt)
+        for cb in list(self._subscribers):
+            with suppress(Exception):
+                cb(evt)
         return evt
