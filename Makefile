@@ -1,4 +1,4 @@
-.PHONY: help install dev lint type test run stack down docker
+.PHONY: help install dev lint type test demo run stack down docker
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "\033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -17,6 +17,12 @@ type: ## mypy type check
 
 test: ## Run tests (offline, fakes)
 	PYTHONPATH=src pytest -q
+
+demo: ## Watch a full lifecycle run and pretty-print every artifact (offline, no key)
+	python scripts/demo.py --depth standard
+
+demo-live: ## Same demo but with real Claude calls (needs EDT_LLM_ANTHROPIC_API_KEY)
+	python scripts/demo.py --live --depth lite
 
 run: ## Run a lifecycle locally (needs EDT_LLM_ANTHROPIC_API_KEY)
 	PYTHONPATH=src python -m edt_platform.cli run "A regional bank is losing Gen-Z customers; grow deposits" --depth lite
