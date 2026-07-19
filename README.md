@@ -133,10 +133,19 @@ feedback loops without any infrastructure — then swap in real backends via env
 
 ### 4.1 The dashboard — visualize & execute the whole cycle
 
-`make dashboard` serves a single-page **Design Thinking Command Center** at
-`http://localhost:8080` (from `src/edt_platform/api/dashboard.html`, served by the
-FastAPI control plane). It works in **demo mode with no API key** and switches to
+**No setup? Open the browser demo.** [`web/index.html`](web/index.html) is a
+self-contained, single-file version that runs the whole lifecycle client-side — open it
+in any browser, or host it on GitHub Pages via the [`pages`](.github/workflows/pages.yml)
+workflow (Settings → Pages → Source: GitHub Actions → served at
+`https://<owner>.github.io/<repo>/`). See [`web/README.md`](web/README.md).
+
+**Full backend.** `make dashboard` serves the single-page **Design Thinking Command
+Center** at `http://localhost:8080` (from `src/edt_platform/api/dashboard.html`, served by
+the FastAPI control plane). It works in **demo mode with no API key** and switches to
 **live** automatically when `EDT_LLM_ANTHROPIC_API_KEY` is set.
+> Note: `localhost:8080` is the machine running `make dashboard`. In a remote/cloud
+> session that's the container, not your laptop — run it locally, or use the browser demo
+> above.
 
 What you can do in it:
 
